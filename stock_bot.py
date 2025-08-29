@@ -1,6 +1,6 @@
 import yfinance as yf
 import requests
-from telegram import Bot
+from telegram.ext import Application
 import asyncio
 import time
 from datetime import datetime
@@ -20,15 +20,15 @@ VN30_STOCKS = [
 ]
 
 # Hàm kiểm tra kết nối Telegram
-async def check_telegram_connection():
+async def check_telegram_connection(app):
     try:
-        bot = Bot(token=BOT_TOKEN)
-        await bot.get_me()
+        await app.bot.get_me()
         return True
     except Exception as e:
-        print(f"Lỗi kết nối Telegram: {e}")
-        with open("C:\\Dell\\bot_log.txt", "a", encoding="utf-8") as f:
-            f.write(f"Lỗi kết nối Telegram: {e}\n")
+        log_message = f"Lỗi kết nối Telegram: {e}"
+        print(log_message)
+        with open("bot_log.txt", "a", encoding="utf-8") as f:
+            f.write(log_message + "\n")
         return False
 
 # Hàm lấy giá cổ phiếu
@@ -62,20 +62,19 @@ def get_crypto_prices(coins):
         return [f"Lỗi khi lấy giá coin: {e}"]
 
 # Hàm gửi tin nhắn lên channel
-async def send_message_to_channel(message):
-    bot = Bot(token=BOT_TOKEN)
+async def send_message_to_channel(app, message):
     for attempt in range(5):
         try:
-            await bot.send_message(chat_id=CHANNEL_ID, text=message)
+            await app.bot.send_message(chat_id=CHANNEL_ID, text=message)
             log_message = f"Tin nhắn đã được gửi lúc {datetime.now(pytz.timezone('Asia/Ho_Chi_Minh'))}!"
             print(log_message)
-            with open("C:\\Dell\\bot_log.txt", "a", encoding="utf-8") as f:
+            with open("bot_log.txt", "a", encoding="utf-8") as f:
                 f.write(log_message + "\n")
             return
         except Exception as e:
             log_message = f"Lỗi khi gửi tin nhắn (thử {attempt + 1}/5): {e}"
             print(log_message)
-            with open("C:\\Dell\\bot_log.txt", "a", encoding="utf-8") as f:
+            with open("bot_log.txt", "a", encoding="utf-8") as f:
                 f.write(log_message + "\n")
             if attempt < 4:
                 await asyncio.sleep(20)
@@ -97,55 +96,50 @@ def wait_for_next_15_minute_mark():
     now = datetime.now(vn_tz)
     minutes = now.minute
     seconds = now.second
-    # Tính phút còn lại để đến mốc 15 phút tiếp theo (0, 15, 30, 45)
     next_mark = ((minutes // 15) + 1) * 15
     if next_mark == 60:
         next_mark = 0
     seconds_to_wait = (next_mark - minutes) * 60 - seconds
     if seconds_to_wait < 0:
-        seconds_to_wait += 3600  # Chuyển sang giờ tiếp theo
+        seconds_to_wait += 3600
     return seconds_to_wait
 
 # Hàm chính
-async def main():
-    # Kiểm tra kết nối Telegram
-    if not await check_telegram_connection():
+async def main(app):
+    if not await check_telegram_connection(app):
         print("Không thể kết nối đến Telegram. Bỏ qua lần gửi này.")
         return
     
-    # Danh sách coin
     crypto_coins = ["bitcoin", "ethereum", "solana", "binancecoin", "cardano", "avalanche-2", "chainlink", "ripple"]
     
-    # Kiểm tra thời gian và gửi tin nhắn phù hợp
     message = ""
-    if is_time_in_range(5, 30, 22, 30):  # 5:30 - 22:30: Giá coin
+    if is_time_in_range(5, 30, 22, 30):
         crypto_prices = get_crypto_prices(crypto_coins)
         message += "💰 Giá các đồng coin:\n" + "\n".join(crypto_prices)
-    if is_time_in_range(9, 15, 14, 30):  # 9:15 - 14:30: Giá VN30
+    if is_time_in_range(9, 15, 14, 30):
         stock_prices = get_stock_prices(VN30_STOCKS)
         message += ("\n\n" if message else "") + "📈 Giá cổ phiếu VN30:\n" + "\n".join(stock_prices)
     
-    # Gửi tin nhắn nếu có nội dung
     if message:
-        await send_message_to_channel(message)
+        await send_message_to_channel(app, message)
     else:
         log_message = f"Không gửi tin nhắn: Ngoài khung giờ quy định, hiện tại {datetime.now(pytz.timezone('Asia/Ho_Chi_Minh'))}"
         print(log_message)
-        with open("C:\\Dell\\bot_log.txt", "a", encoding="utf-8") as f:
+        with open("bot_log.txt", "a", encoding="utf-8") as f:
             f.write(log_message + "\n")
 
 # Chạy chương trình
 if __name__ == "__main__":
+    app = Application.builder().token(BOT_TOKEN).build()
     while True:
         try:
-            # Chờ đến mốc 15 phút tiếp theo
             sleep_time = wait_for_next_15_minute_mark()
             print(f"Chờ {sleep_time} giây đến mốc 15 phút tiếp theo...")
             time.sleep(sleep_time)
-            asyncio.run(main())
+            asyncio.run(main(app))
         except Exception as e:
             log_message = f"Lỗi chính: {e}"
             print(log_message)
-            with open("C:\\Dell\\bot_log.txt", "a", encoding="utf-8") as f:
+            with open("bot_log.txt", "a", encoding="utf-8") as f:
                 f.write(log_message + "\n")
-            time.sleep(60)  # Chờ 1 phút nếu lỗi
+            time.sleep(60)
