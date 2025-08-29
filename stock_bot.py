@@ -104,6 +104,11 @@ def wait_for_next_15_minute_mark():
         seconds_to_wait += 3600
     return seconds_to_wait
 
+# Hàm kiểm tra khung giờ gửi giá cổ phiếu
+def is_stock_time():
+    # Khung giờ: 9:15–11:30 và 13:00–14:45
+    return is_time_in_range(9, 15, 11, 30) or is_time_in_range(13, 0, 14, 45)
+
 # Hàm chính
 async def main(app):
     if not await check_telegram_connection(app):
@@ -116,7 +121,7 @@ async def main(app):
     if is_time_in_range(5, 30, 22, 30):
         crypto_prices = get_crypto_prices(crypto_coins)
         message += "💰 Giá các đồng coin:\n" + "\n".join(crypto_prices)
-    if is_time_in_range(9, 15, 14, 30):
+    if is_stock_time():
         stock_prices = get_stock_prices(VN30_STOCKS)
         message += ("\n\n" if message else "") + "📈 Giá cổ phiếu VN30:\n" + "\n".join(stock_prices)
     
