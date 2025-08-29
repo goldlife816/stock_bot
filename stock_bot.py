@@ -90,6 +90,12 @@ def is_time_in_range(start_hour, start_minute, end_hour, end_minute):
     end_time = end_hour * 60 + end_minute
     return start_time <= current_time <= end_time
 
+# Hàm kiểm tra ngày trong tuần (0=Chủ Nhật, 6=Thứ Bảy)
+def is_weekday():
+    vn_tz = pytz.timezone("Asia/Ho_Chi_Minh")
+    now = datetime.now(vn_tz)
+    return now.weekday() < 5  # Thứ Hai (0) đến Thứ Sáu (4)
+
 # Hàm tính thời gian chờ đến mốc 15 phút tiếp theo
 def wait_for_next_15_minute_mark():
     vn_tz = pytz.timezone("Asia/Ho_Chi_Minh")
@@ -106,8 +112,8 @@ def wait_for_next_15_minute_mark():
 
 # Hàm kiểm tra khung giờ gửi giá cổ phiếu
 def is_stock_time():
-    # Khung giờ: 9:15–11:30 và 13:00–14:45
-    return is_time_in_range(9, 15, 11, 30) or is_time_in_range(13, 0, 14, 45)
+    # Khung giờ: 9:15–11:30 và 13:00–14:45, chỉ từ Thứ Hai đến Thứ Sáu
+    return is_weekday() and (is_time_in_range(9, 15, 11, 30) or is_time_in_range(13, 0, 14, 45))
 
 # Hàm chính
 async def main(app):
